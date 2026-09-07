@@ -18,11 +18,13 @@
 #include <thread>
 #include "ColorManager.h"
 #include "Logger.h"
+#include <filesystem>
+#include <iostream>
 
 using namespace std;
 using namespace Gdiplus;
 using namespace EuroScopePlugIn;
-
+namespace fs = std::filesystem;
 
 namespace SMRSharedData
 {
@@ -79,7 +81,7 @@ public:
 	char DllPathFile[_MAX_PATH];
 	string DllPath;
 	string ConfigPath;
-	CCallsignLookup * Callsigns;
+	CCallsignLookup * Callsigns = nullptr;
 	CColorManager * ColorManager;
 
 	map<string, bool> ShowLists;
@@ -125,7 +127,7 @@ public:
 
 	int Trail_Gnd = 4;
 	int Trail_App = 4;
-	int PredictedLenght = 0;
+	int PredictedLength = 0;
 
 	bool NeedCorrelateCursor = false;
 	bool ReleaseInProgress = false;

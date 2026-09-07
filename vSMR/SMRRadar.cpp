@@ -61,23 +61,29 @@ CSMRRadar::CSMRRadar()
 	ConfigPath = DllPath + "\\vSMR_Profiles.json";
 
 	Logger::info("Loading callsigns");
-	// Loading up the callsigns for the bottom line
-	// Search for ICAO airlines file if it already exists (usually given by the VACC)
-	string AirlinesPath = DllPath;
-	for (int i = 0; i < 3; ++i) {
-		AirlinesPath = AirlinesPath.substr(0, AirlinesPath.find_last_of("/\\"));
-	}
-	AirlinesPath += "\\ICAO\\ICAO_Airlines.txt";
 
-	ifstream f(AirlinesPath.c_str());
+	// Creating the RIMCAS instance
+	if (Callsigns == nullptr)
+		Callsigns = new CCallsignLookup();
 
-	if (f.good()) {
-		Callsigns = new CCallsignLookup(AirlinesPath);
-	}
-	else {
-		Callsigns = new CCallsignLookup(DllPath + "\\ICAO_Airlines.txt");
-	}
-	f.close();
+	// We can look in three places for this file:
+	// 1. Within the plugin directory
+	// 2. In the ICAO folder of a GNG package
+	// 3. In the working directory of EuroScope
+	fs::path possible_paths[3];
+	possible_paths[0] = fs::path(DllPath) / fs::path("ICAO_Airlines.txt");
+	possible_paths[1] = fs::path(DllPath).parent_path().parent_path() / fs::path("ICAO") / fs::path("ICAO_Airlines.txt");
+	possible_paths[2] = fs::path(DllPath).parent_path().parent_path().parent_path() / fs::path("ICAO") / fs::path("ICAO_Airlines.txt");
+
+	for (auto p : possible_paths) {
+		Logger::info("Trying to read callsigns from: " + p.string());
+		if (fs::exists(p)) {
+			Logger::info("Found callsign file!");
+			Callsigns->readFile(p.string());
+
+			break;
+		}
+	};
 
 	Logger::info("Loading RIMCAS & Config");
 	// Creating the RIMCAS instance
@@ -231,7 +237,7 @@ void CSMRRadar::OnAsrContentLoaded(bool Loaded)
 		Trail_Gnd = atoi(p_value);
 
 	if ((p_value = GetDataFromAsr("PredictedLine")) != NULL)
-		PredictedLenght = atoi(p_value);
+		PredictedLength = atoi(p_value);
 
 	string temp;
 
@@ -308,7 +314,7 @@ void CSMRRadar::OnAsrContentToBeSaved()
 
 	SaveDataToAsr("GndTrailsDots", "vSMR GRND Trail Dots", std::to_string(Trail_Gnd).c_str());
 
-	SaveDataToAsr("PredictedLine", "vSMR Predicted Track Lines", std::to_string(PredictedLenght).c_str());
+	SaveDataToAsr("PredictedLine", "vSMR Predicted Track Lines", std::to_string(PredictedLength).c_str());
 
 	string temp = "";
 
@@ -826,14 +832,14 @@ void CSMRRadar::OnClickScreenObject(int ObjectType, const char * sObjectId, POIN
 		int TagMenu = TagObjectMiddleTypes[ObjectType];
 		CRadarTarget rt = GetPlugIn()->RadarTargetSelect(sObjectId);
 		GetPlugIn()->SetASELAircraft(GetPlugIn()->FlightPlanSelect(sObjectId));
-		StartTagFunction(rt.GetCallsign(), NULL, ObjectType, rt.GetCallsign(), NULL, TagMenu, Pt, Area);
+		StartTagFunction(rt.GetCallsign(), NULL, EuroScopePlugIn::TAG_ITEM_TYPE_CALLSIGN, rt.GetCallsign(), NULL, TagMenu, Pt, Area);
 	}
 
 	if (Button == BUTTON_RIGHT && TagObjectRightTypes[ObjectType]) {
 		int TagMenu = TagObjectRightTypes[ObjectType];
 		CRadarTarget rt = GetPlugIn()->RadarTargetSelect(sObjectId);
 		GetPlugIn()->SetASELAircraft(GetPlugIn()->FlightPlanSelect(sObjectId));
-		StartTagFunction(rt.GetCallsign(), NULL, ObjectType, rt.GetCallsign(), NULL, TagMenu, Pt, Area);
+		StartTagFunction(rt.GetCallsign(), NULL, EuroScopePlugIn::TAG_ITEM_TYPE_CALLSIGN, rt.GetCallsign(), NULL, TagMenu, Pt, Area);
 	}
 
 	if (ObjectType == RIMCAS_DISTANCE_TOOL)
@@ -1000,7 +1006,7 @@ void CSMRRadar::OnFunctionCall(int FunctionId, const char * sItemString, POINT P
 
 	if (FunctionId == RIMCAS_UPDATE_PTL)
 	{
-		PredictedLenght = atoi(sItemString);
+		PredictedLength = atoi(sItemString);
 
 		ShowLists["Predicted Track Line"] = true;
 	}
@@ -1389,7 +1395,7 @@ map<string, string> CSMRRadar::GenerateTagData(CRadarTarget rt, CFlightPlan fp, 
 	}
 
 	if (gate.size() == 0 || gate == "0" || !isAcCorrelated)
-		gate = "NoGATE";
+		gate = "NoGate";
 
 	// ----- Gate that changes to speed -------
 	string sate = gate;
@@ -1953,12 +1959,12 @@ void CSMRRadar::OnRefresh(HDC hDC, int Phase)
 
 		// Predicted Track Line
 		// It starts 20 seconds away from the ac
-		if (reportedGs > 50)
+		if (reportedGs > 50 && PredictedLength > 0)
 		{
 			double d = double(rt.GetPosition().GetReportedGS()*0.514444) * 10;
 			CPosition AwayBase = BetterHarversine(rt.GetPosition().GetPosition(), rt.GetTrackHeading(), d);
 
-			d = double(rt.GetPosition().GetReportedGS()*0.514444) * (PredictedLenght * 60) - 10;
+			d = double(rt.GetPosition().GetReportedGS()*0.514444) * (PredictedLength * 60) - 10;
 			CPosition PredictedEnd = BetterHarversine(AwayBase, rt.GetTrackHeading(), d);
 
 			dc.MoveTo(ConvertCoordFromPositionToPixel(AwayBase));
@@ -2175,14 +2181,12 @@ void CSMRRadar::OnRefresh(HDC hDC, int Phase)
 			if (!TagReplacingMap["asid"].empty() && CurrentConfig->isSidColorAvail(TagReplacingMap["asid"], getActiveAirport())) {
 				definedBackgroundColor = CurrentConfig->getSidColor(TagReplacingMap["asid"], getActiveAirport());
 			}
-
-			if (fp.GetFlightPlanData().GetPlanType() == "I" && TagReplacingMap["asid"].empty() && LabelsSettings[Utils::getEnumString(ColorTagType).c_str()].HasMember("nosid_color")) {
+			if (fp.GetFlightPlanData().GetPlanType()[0] == 'I' && TagReplacingMap["asid"].empty() && LabelsSettings[Utils::getEnumString(ColorTagType).c_str()].HasMember("nosid_color")) {
 				definedBackgroundColor = CurrentConfig->getConfigColor(LabelsSettings[Utils::getEnumString(ColorTagType).c_str()]["nosid_color"]);
 			}
-
+		}
 			if (TagReplacingMap["actype"] == "NoFPL" && LabelsSettings[Utils::getEnumString(ColorTagType).c_str()].HasMember("nofpl_color")) {
 				definedBackgroundColor = CurrentConfig->getConfigColor(LabelsSettings[Utils::getEnumString(ColorTagType).c_str()]["nofpl_color"]);
-			}
 		}
 
 		Color TagBackgroundColor = RimcasInstance->GetAircraftColor(rt.GetCallsign(),
@@ -2477,12 +2481,12 @@ void CSMRRadar::OnRefresh(HDC hDC, int Phase)
 
 	if (ShowLists["Predicted Track Line"]) {
 		GetPlugIn()->OpenPopupList(ListAreas["Predicted Track Line"], "Predicted Track Line", 1);
-		GetPlugIn()->AddPopupListElement("0", "", RIMCAS_UPDATE_PTL, false, int(bool(PredictedLenght == 0)));
-		GetPlugIn()->AddPopupListElement("1", "", RIMCAS_UPDATE_PTL, false, int(bool(PredictedLenght == 1)));
-		GetPlugIn()->AddPopupListElement("2", "", RIMCAS_UPDATE_PTL, false, int(bool(PredictedLenght == 2)));
-		GetPlugIn()->AddPopupListElement("3", "", RIMCAS_UPDATE_PTL, false, int(bool(PredictedLenght == 3)));
-		GetPlugIn()->AddPopupListElement("4", "", RIMCAS_UPDATE_PTL, false, int(bool(PredictedLenght == 4)));
-		GetPlugIn()->AddPopupListElement("5", "", RIMCAS_UPDATE_PTL, false, int(bool(PredictedLenght == 5)));
+		GetPlugIn()->AddPopupListElement("0", "", RIMCAS_UPDATE_PTL, false, int(bool(PredictedLength == 0)));
+		GetPlugIn()->AddPopupListElement("1", "", RIMCAS_UPDATE_PTL, false, int(bool(PredictedLength == 1)));
+		GetPlugIn()->AddPopupListElement("2", "", RIMCAS_UPDATE_PTL, false, int(bool(PredictedLength == 2)));
+		GetPlugIn()->AddPopupListElement("3", "", RIMCAS_UPDATE_PTL, false, int(bool(PredictedLength == 3)));
+		GetPlugIn()->AddPopupListElement("4", "", RIMCAS_UPDATE_PTL, false, int(bool(PredictedLength == 4)));
+		GetPlugIn()->AddPopupListElement("5", "", RIMCAS_UPDATE_PTL, false, int(bool(PredictedLength == 5)));
 		GetPlugIn()->AddPopupListElement("Close", "", RIMCAS_CLOSE, false, 2, false, true);
 		ShowLists["Predicted Track Line"] = false;
 	}

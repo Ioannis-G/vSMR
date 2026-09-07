@@ -3,6 +3,7 @@
 #include <string>
 #include <sstream>
 #include <map>
+#include <vector>
 
 using namespace std;
 
@@ -14,7 +15,8 @@ private:
 
 public:
 
-	CCallsignLookup(string fileName);
+	CCallsignLookup();
+	void readFile(string fileName);
 	string getCallsign(string airlineCode);
 
 	~CCallsignLookup();
