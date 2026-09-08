@@ -2186,7 +2186,12 @@ void CSMRRadar::OnRefresh(HDC hDC, int Phase)
 
 				lineStringArray.push_back(element);
 
-				wstring wstr = wstring(element.begin(), element.end());
+				// Map tendency ASCII sentinels to Unicode arrows for non-ES fonts
+				wstring wstr;
+				if (element == "^")       wstr = L"\u2191"; // ↑ climbing (U+2191)
+				else if (element == "|")  wstr = L"\u2193"; // ↓ descending (U+2193) 
+				else                      wstr = wstring(element.begin(), element.end());
+				
 				graphics.MeasureString(wstr.c_str(), wcslen(wstr.c_str()),
 					customFonts[currentFontSize], PointF(0, 0), &Gdiplus::StringFormat(), &mesureRect);
 
@@ -2328,7 +2333,11 @@ void CSMRRadar::OnRefresh(HDC hDC, int Phase)
 
 				RectF mRect(0, 0, 0, 0);
 
-				wstring welement = wstring(element.begin(), element.end());
+				// Map tendency ASCII sentinels to Unicode arrows for non-ES fonts (e.g. Tahoma Bold)
+				wstring welement;
+				if (element == "^")        welement = L"\u2191"; // ↑ climbing (U+2191)
+				else if (element == "|")   welement = L"\u2193"; // ↓ descending (U+2193)
+				else                       welement = wstring(element.begin(), element.end());
 
 				graphics.DrawString(welement.c_str(), wcslen(welement.c_str()), customFonts[currentFontSize],
 					PointF(Gdiplus::REAL(TagBackgroundRect.left + widthOffset), Gdiplus::REAL(TagBackgroundRect.top + heightOffset)),

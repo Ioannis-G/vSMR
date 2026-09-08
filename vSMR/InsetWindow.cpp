@@ -492,7 +492,12 @@ void CInsetWindow::render(HDC hDC, CSMRRadar * radar_screen, Graphics* gdi, POIN
 
 				lineStringArray.push_back(element);
 
-				wstring wstr = wstring(element.begin(), element.end());
+				// Map tendency ASCII sentinels to Unicode arrows for non-ES fonts
+				wstring wstr;
+				if (element == "^")       wstr = L"\u2191"; // ↑ climbing (U+2191)
+				else if (element == "|")  wstr = L"\u2193"; // ↓ descending (U+2193)
+				else                      wstr = wstring(element.begin(), element.end());
+
 				gdi->MeasureString(wstr.c_str(), wcslen(wstr.c_str()),
 					radar_screen->customFonts[radar_screen->currentFontSize], PointF(0, 0), &Gdiplus::StringFormat(), &mesureRect);
 
@@ -568,7 +573,11 @@ void CInsetWindow::render(HDC hDC, CSMRRadar * radar_screen, Graphics* gdi, POIN
 
 					RectF mRect(0, 0, 0, 0);
 
-					wstring welement = wstring(element.begin(), element.end());
+					// Map tendency ASCII sentinels to Unicode arrows for non-ES fonts
+					wstring welement;
+					if (element == "^")       welement = L"\u2191"; // ↑ climbing (U+2191)
+					else if (element == "|")  welement = L"\u2193"; // ↓ descending (U+2193)
+					else                      welement = wstring(element.begin(), element.end())
 
 					gdi->DrawString(welement.c_str(), wcslen(welement.c_str()), radar_screen->customFonts[radar_screen->currentFontSize],
 						PointF(Gdiplus::REAL(TagBackgroundRect.left + widthOffset), Gdiplus::REAL(TagBackgroundRect.top + heightOffset)),
