@@ -142,9 +142,15 @@ void CInsetWindow::render(HDC hDC, CSMRRadar * radar_screen, Graphics* gdi, POIN
 				return "departure";
 			if (type == CSMRRadar::TagTypes::Arrival)
 				return "arrival";
+			if (type == CSMRRadar::TagTypes::AirborneDeparture)
+				return "airborne_departure";
+			if (type == CSMRRadar::TagTypes::AirborneArrival)
+				return "airborne_arrival";
 			if (type == CSMRRadar::TagTypes::Uncorrelated)
 				return "uncorrelated";
-			return "airborne";
+			if (type == CSMRRadar::TagTypes::AirborneUncorrelated)
+				return "airborne_uncorrelated";
+			return "airborne_departure";
 		}
 		static RECT GetAreaFromText(CDC * dc, string text, POINT Pos) {
 			RECT Area = { Pos.x, Pos.y, Pos.x + dc->GetTextExtent(text.c_str()).cx, Pos.y + dc->GetTextExtent(text.c_str()).cy };
@@ -433,21 +439,17 @@ void CInsetWindow::render(HDC hDC, CSMRRadar * radar_screen, Graphics* gdi, POIN
 				ColorTagType = CSMRRadar::TagTypes::Arrival;
 		}
 
-		if (reportedGs > 50) {
-			TagType = CSMRRadar::TagTypes::Airborne;
-
-			// Is "use_departure_arrival_coloring" enabled? if not, then use the airborne colors
-			bool useDepArrColors = radar_screen->CurrentConfig->getActiveProfile()["labels"]["airborne"]["use_departure_arrival_coloring"].GetBool();
-			if (!useDepArrColors) {
-				ColorTagType = CSMRRadar::TagTypes::Airborne;
-			}
+				if (reportedGs > 50) {
+			// Preserve dep/arr distinction for airborne tags
+			TagType = (TagType == CSMRRadar::TagTypes::Arrival) ? CSMRRadar::TagTypes::AirborneArrival : CSMRRadar::TagTypes::AirborneDeparture;
+			ColorTagType = TagType;
 		}
 
 		bool AcisCorrelated = radar_screen->IsCorrelated(radar_screen->GetPlugIn()->FlightPlanSelect(rt.GetCallsign()), rt);
 		if (!AcisCorrelated && reportedGs >= 3)
 		{
-			TagType = CSMRRadar::TagTypes::Uncorrelated;
-			ColorTagType = CSMRRadar::TagTypes::Uncorrelated;
+			TagType = (reportedGs > 50) ? CSMRRadar::TagTypes::AirborneUncorrelated : CSMRRadar::TagTypes::Uncorrelated;
+			ColorTagType = TagType;
 		}
 
 		// First we need to figure out the tag size
@@ -490,7 +492,12 @@ void CInsetWindow::render(HDC hDC, CSMRRadar * radar_screen, Graphics* gdi, POIN
 
 				lineStringArray.push_back(element);
 
-				wstring wstr = wstring(element.begin(), element.end());
+				// Map tendency ASCII sentinels to Unicode arrows for non-ES fonts
+				wstring wstr;
+				if (element == "^")       wstr = L"\u2191"; // ↑ climbing (U+2191)
+				else if (element == "|")  wstr = L"\u2193"; // ↓ descending (U+2193)
+				else                      wstr = wstring(element.begin(), element.end());
+
 				gdi->MeasureString(wstr.c_str(), wcslen(wstr.c_str()),
 					radar_screen->customFonts[radar_screen->currentFontSize], PointF(0, 0), &Gdiplus::StringFormat(), &mesureRect);
 
@@ -566,7 +573,11 @@ void CInsetWindow::render(HDC hDC, CSMRRadar * radar_screen, Graphics* gdi, POIN
 
 					RectF mRect(0, 0, 0, 0);
 
-					wstring welement = wstring(element.begin(), element.end());
+					// Map tendency ASCII sentinels to Unicode arrows for non-ES fonts
+					wstring welement;
+					if (element == "^")       welement = L"\u2191"; // ↑ climbing (U+2191)
+					else if (element == "|")  welement = L"\u2193"; // ↓ descending (U+2193)
+					else                      welement = wstring(element.begin(), element.end())
 
 					gdi->DrawString(welement.c_str(), wcslen(welement.c_str()), radar_screen->customFonts[radar_screen->currentFontSize],
 						PointF(Gdiplus::REAL(TagBackgroundRect.left + widthOffset), Gdiplus::REAL(TagBackgroundRect.top + heightOffset)),
@@ -686,7 +697,7 @@ void CInsetWindow::render(HDC hDC, CSMRRadar * radar_screen, Graphics* gdi, POIN
 		bearings = bearings.substr(0, decimal_pos + 2);
 
 		string text = bearings;
-		text += "� / ";
+		text += "° / ";
 		text += distances;
 		text += "nm";
 		COLORREF old_color = dc.SetTextColor(RGB(0, 0, 0));

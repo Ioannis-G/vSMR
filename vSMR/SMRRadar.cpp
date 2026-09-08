@@ -33,6 +33,28 @@ inline bool IsTagBeingDragged(string c)
 {
 	return TagBeingDragged == c;
 }
+// Parses the GRP stand assignment from flight strip annotation index 6.
+// GRP stores the assigned stand in the format "s/STAND/s" (e.g. "s/B40/s").
+// Returns the stand name (e.g. "B40"), or an empty string if not set / whitespace only.
+inline string parseGRPStripAnnotation(CFlightPlan fp) {
+	const char* raw = fp.GetControllerAssignedData().GetFlightStripAnnotation(6);
+	if (raw == nullptr)
+		return "";
+	string annotation(raw);
+	// Expected format: s/STAND/s
+	size_t firstSlash = annotation.find('/');
+	size_t lastSlash = annotation.rfind('/');
+	if (firstSlash != string::npos && lastSlash != string::npos && lastSlash > firstSlash) {
+		string stand = annotation.substr(firstSlash + 1, lastSlash - firstSlash - 1);
+		// Trim whitespace
+		size_t start = stand.find_first_not_of(" \t\r\n");
+		if (start == string::npos)
+			return "";
+		size_t end = stand.find_last_not_of(" \t\r\n");
+		return stand.substr(start, end - start + 1);
+	}
+	return "";
+}
 bool mouseWithin(CRect rect) {
 	if (mouseLocation.x >= rect.left + 1 && mouseLocation.x <= rect.right - 1 && mouseLocation.y >= rect.top + 1 && mouseLocation.y <= rect.bottom - 1)
 		return true;
@@ -1357,7 +1379,9 @@ map<string, string> CSMRRadar::GenerateTagData(CRadarTarget rt, CFlightPlan fp, 
 		sctype = sqerror;
 
 	// ----- Groundspeed -------
-	string speed = std::to_string(rt.GetPosition().GetReportedGS());
+	char speed_buffer[5];
+	sprintf_s(speed_buffer, sizeof(speed_buffer), "G%03d", rt.GetPosition().GetReportedGS());
+	string speed = speed_buffer;
 
 	// ----- Departure runway -------
 	string deprwy = fp.GetFlightPlanData().GetDepartureRwy();
@@ -1384,15 +1408,16 @@ map<string, string> CSMRRadar::GenerateTagData(CRadarTarget rt, CFlightPlan fp, 
 	if (useSpeedForGates)
 		gate = std::to_string(fp.GetControllerAssignedData().GetAssignedSpeed());
 	else
-		gate = fp.GetControllerAssignedData().GetScratchPadString();
+		gate = parseGRPStripAnnotation(fp); // Read from GRP flight strip annotation (index 6, format: s/STAND/s)
 
-	gate = gate.substr(0, 4);
+	if (!gate.empty())
+		gate = gate.substr(0, 4);
 
 	// If there is a vStrips gate, we use that
-	if (vStripsStands.find(rt.GetCallsign()) != vStripsStands.end())
-	{
-		gate = vStripsStands[rt.GetCallsign()];
-	}
+	//if (vStripsStands.find(rt.GetCallsign()) != vStripsStands.end())
+	//{
+	//	gate = vStripsStands[rt.GetCallsign()];
+	//}
 
 	if (gate.size() == 0 || gate == "0" || !isAcCorrelated)
 		gate = "NoGate";
@@ -1622,9 +1647,15 @@ void CSMRRadar::OnRefresh(HDC hDC, int Phase)
 				return "departure";
 			if (type == TagTypes::Arrival)
 				return "arrival";
+			if (type == TagTypes::AirborneDeparture)
+				return "airborne_departure";
+			if (type == TagTypes::AirborneArrival)
+				return "airborne_arrival";
 			if (type == TagTypes::Uncorrelated)
 				return "uncorrelated";
-			return "airborne";
+			if (type == TagTypes::AirborneUncorrelated)
+				return "airborne_uncorrelated";
+			return "airborne_departure";
 		}
 	};
 
@@ -2075,19 +2106,15 @@ void CSMRRadar::OnRefresh(HDC hDC, int Phase)
 		}
 
 		if (reportedGs > 50) {
-			TagType = TagTypes::Airborne;
-
-			// Is "use_departure_arrival_coloring" enabled? if not, then use the airborne colors
-			bool useDepArrColors = CurrentConfig->getActiveProfile()["labels"]["airborne"]["use_departure_arrival_coloring"].GetBool();
-			if (!useDepArrColors) {
-				ColorTagType = TagTypes::Airborne;
-			}
+			// Preserve dep/arr distinction for airborne tags
+			TagType = (TagType == TagTypes::Arrival) ? TagTypes::AirborneArrival : TagTypes::AirborneDeparture;
+			ColorTagType = TagType;
 		}
 
 		if (!AcisCorrelated && reportedGs >= 3)
 		{
-			TagType = TagTypes::Uncorrelated;
-			ColorTagType = TagTypes::Uncorrelated;
+			TagType = (reportedGs > 50) ? TagTypes::AirborneUncorrelated : TagTypes::Uncorrelated;
+			ColorTagType = TagType;
 		}
 
 		map<string, string> TagReplacingMap = GenerateTagData(rt, fp, IsCorrelated(fp, rt), CurrentConfig->getActiveProfile()["filters"]["pro_mode"]["enable"].GetBool(), GetPlugIn()->GetTransitionAltitude(), CurrentConfig->getActiveProfile()["labels"]["use_aspeed_for_gate"].GetBool(), getActiveAirport());
@@ -2159,7 +2186,12 @@ void CSMRRadar::OnRefresh(HDC hDC, int Phase)
 
 				lineStringArray.push_back(element);
 
-				wstring wstr = wstring(element.begin(), element.end());
+				// Map tendency ASCII sentinels to Unicode arrows for non-ES fonts
+				wstring wstr;
+				if (element == "^")       wstr = L"\u2191"; // ↑ climbing (U+2191)
+				else if (element == "|")  wstr = L"\u2193"; // ↓ descending (U+2193) 
+				else                      wstr = wstring(element.begin(), element.end());
+				
 				graphics.MeasureString(wstr.c_str(), wcslen(wstr.c_str()),
 					customFonts[currentFontSize], PointF(0, 0), &Gdiplus::StringFormat(), &mesureRect);
 
@@ -2301,7 +2333,11 @@ void CSMRRadar::OnRefresh(HDC hDC, int Phase)
 
 				RectF mRect(0, 0, 0, 0);
 
-				wstring welement = wstring(element.begin(), element.end());
+				// Map tendency ASCII sentinels to Unicode arrows for non-ES fonts (e.g. Tahoma Bold)
+				wstring welement;
+				if (element == "^")        welement = L"\u2191"; // ↑ climbing (U+2191)
+				else if (element == "|")   welement = L"\u2193"; // ↓ descending (U+2193)
+				else                       welement = wstring(element.begin(), element.end());
 
 				graphics.DrawString(welement.c_str(), wcslen(welement.c_str()), customFonts[currentFontSize],
 					PointF(Gdiplus::REAL(TagBackgroundRect.left + widthOffset), Gdiplus::REAL(TagBackgroundRect.top + heightOffset)),

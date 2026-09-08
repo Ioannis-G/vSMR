@@ -12,9 +12,9 @@
 #include "SMRRadar.hpp"
 #include "Logger.h"
 
-#define MY_PLUGIN_NAME      "vSMR"
-#define MY_PLUGIN_VERSION   "@appveyor_build"
-#define MY_PLUGIN_DEVELOPER "Pierre Ferran, Even Rognlien, Lionel Bischof, Daniel Lange, Juha Holopainen, Keanu Czirjak"
+#define MY_PLUGIN_NAME      "HvACC vSMR"
+#define MY_PLUGIN_VERSION   "v1.0"
+#define MY_PLUGIN_DEVELOPER "Pierre Ferran & Contributors, HvACC"
 #define MY_PLUGIN_COPYRIGHT "GPL v3"
 #define MY_PLUGIN_VIEW_AVISO  "SMR radar display"
 
