@@ -1357,7 +1357,9 @@ map<string, string> CSMRRadar::GenerateTagData(CRadarTarget rt, CFlightPlan fp, 
 		sctype = sqerror;
 
 	// ----- Groundspeed -------
-	string speed = std::to_string(rt.GetPosition().GetReportedGS());
+	char speed_buffer[5];
+	sprintf_s(speed_buffer, sizeof(speed_buffer), "G%03d", rt.GetPosition().GetReportedGS());
+	string speed = speed_buffer;
 
 	// ----- Departure runway -------
 	string deprwy = fp.GetFlightPlanData().GetDepartureRwy();
