@@ -577,7 +577,7 @@ void CInsetWindow::render(HDC hDC, CSMRRadar * radar_screen, Graphics* gdi, POIN
 					wstring welement;
 					if (element == "^")       welement = L"\u2191"; // ↑ climbing (U+2191)
 					else if (element == "|")  welement = L"\u2193"; // ↓ descending (U+2193)
-					else                      welement = wstring(element.begin(), element.end())
+					else                      welement = wstring(element.begin(), element.end());
 
 					gdi->DrawString(welement.c_str(), wcslen(welement.c_str()), radar_screen->customFonts[radar_screen->currentFontSize],
 						PointF(Gdiplus::REAL(TagBackgroundRect.left + widthOffset), Gdiplus::REAL(TagBackgroundRect.top + heightOffset)),
