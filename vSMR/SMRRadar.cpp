@@ -33,6 +33,28 @@ inline bool IsTagBeingDragged(string c)
 {
 	return TagBeingDragged == c;
 }
+// Parses the GRP stand assignment from flight strip annotation index 6.
+// GRP stores the assigned stand in the format "s/STAND/s" (e.g. "s/B40/s").
+// Returns the stand name (e.g. "B40"), or an empty string if not set / whitespace only.
+inline string parseGRPStripAnnotation(CFlightPlan fp) {
+	const char* raw = fp.GetControllerAssignedData().GetFlightStripAnnotation(6);
+	if (raw == nullptr)
+		return "";
+	string annotation(raw);
+	// Expected format: s/STAND/s
+	size_t firstSlash = annotation.find('/');
+	size_t lastSlash = annotation.rfind('/');
+	if (firstSlash != string::npos && lastSlash != string::npos && lastSlash > firstSlash) {
+		string stand = annotation.substr(firstSlash + 1, lastSlash - firstSlash - 1);
+		// Trim whitespace
+		size_t start = stand.find_first_not_of(" \t\r\n");
+		if (start == string::npos)
+			return "";
+		size_t end = stand.find_last_not_of(" \t\r\n");
+		return stand.substr(start, end - start + 1);
+	}
+	return "";
+}
 bool mouseWithin(CRect rect) {
 	if (mouseLocation.x >= rect.left + 1 && mouseLocation.x <= rect.right - 1 && mouseLocation.y >= rect.top + 1 && mouseLocation.y <= rect.bottom - 1)
 		return true;
@@ -1386,15 +1408,16 @@ map<string, string> CSMRRadar::GenerateTagData(CRadarTarget rt, CFlightPlan fp, 
 	if (useSpeedForGates)
 		gate = std::to_string(fp.GetControllerAssignedData().GetAssignedSpeed());
 	else
-		gate = fp.GetControllerAssignedData().GetScratchPadString();
+		gate = parseGRPStripAnnotation(fp); // Read from GRP flight strip annotation (index 6, format: s/STAND/s)
 
-	gate = gate.substr(0, 4);
+	if (!gate.empty())
+		gate = gate.substr(0, 4);
 
 	// If there is a vStrips gate, we use that
-	if (vStripsStands.find(rt.GetCallsign()) != vStripsStands.end())
-	{
-		gate = vStripsStands[rt.GetCallsign()];
-	}
+	//if (vStripsStands.find(rt.GetCallsign()) != vStripsStands.end())
+	//{
+	//	gate = vStripsStands[rt.GetCallsign()];
+	//}
 
 	if (gate.size() == 0 || gate == "0" || !isAcCorrelated)
 		gate = "NoGate";
