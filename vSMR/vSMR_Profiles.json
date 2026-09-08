@@ -106,8 +106,31 @@
                 "b": 255
             }
         },
-        "airborne": {
-            "use_departure_arrival_coloring": true,
+        "airborne_departure": {
+            "definition": [
+                ["callsign", "dep"],
+                ["gs", "tendency", "flightlevel"],
+                ["actype", "dest"]
+            ],
+            "background_color": {
+                "r": 0,
+                "g": 0,
+                "b": 0,
+                "a": 255
+            },
+            "background_color_on_runway": {
+                "r": 0,
+                "g": 0,
+                "b": 0,
+                "a": 0
+            },
+            "text_color": {
+                "r": 255,
+                "g": 255,
+                "b": 255
+            }
+        },
+            "airborne_arrival": {
             "definition": [
                 ["callsign", "dep"],
                 ["gs", "tendency", "flightlevel"],
@@ -158,7 +181,36 @@
                "b": 50,
                "a": 255
             }
+        },
+        "airborne_uncorrelated": {
+        "definition": [
+          [
+            "callsign",
+            "gs"
+          ],
+          [
+            "flightlevel",
+            "tendency"
+          ]
+        ],
+        "text_color": {
+          "r": 255,
+          "g": 255,
+          "b": 255
+        },
+        "background_color": {
+          "r": 40,
+          "g": 40,
+          "b": 50,
+          "a": 255
+        },
+        "background_color_on_runway": {
+          "r": 50,
+          "g": 50,
+          "b": 50,
+          "a": 0
         }
+      }
     },
     "rimcas": {
         "rimcas_label_only": true,

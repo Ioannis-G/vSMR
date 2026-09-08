@@ -1647,9 +1647,15 @@ void CSMRRadar::OnRefresh(HDC hDC, int Phase)
 				return "departure";
 			if (type == TagTypes::Arrival)
 				return "arrival";
+			if (type == TagTypes::AirborneDeparture)
+				return "airborne_departure";
+			if (type == TagTypes::AirborneArrival)
+				return "airborne_arrival";
 			if (type == TagTypes::Uncorrelated)
 				return "uncorrelated";
-			return "airborne";
+			if (type == TagTypes::AirborneUncorrelated)
+				return "airborne_uncorrelated";
+			return "airborne_departure";
 		}
 	};
 
@@ -2100,19 +2106,15 @@ void CSMRRadar::OnRefresh(HDC hDC, int Phase)
 		}
 
 		if (reportedGs > 50) {
-			TagType = TagTypes::Airborne;
-
-			// Is "use_departure_arrival_coloring" enabled? if not, then use the airborne colors
-			bool useDepArrColors = CurrentConfig->getActiveProfile()["labels"]["airborne"]["use_departure_arrival_coloring"].GetBool();
-			if (!useDepArrColors) {
-				ColorTagType = TagTypes::Airborne;
-			}
+			// Preserve dep/arr distinction for airborne tags
+			TagType = (TagType == TagTypes::Arrival) ? TagTypes::AirborneArrival : TagTypes::AirborneDeparture;
+			ColorTagType = TagType;
 		}
 
 		if (!AcisCorrelated && reportedGs >= 3)
 		{
-			TagType = TagTypes::Uncorrelated;
-			ColorTagType = TagTypes::Uncorrelated;
+			TagType = (reportedGs > 50) ? TagTypes::AirborneUncorrelated : TagTypes::Uncorrelated;
+			ColorTagType = TagType;
 		}
 
 		map<string, string> TagReplacingMap = GenerateTagData(rt, fp, IsCorrelated(fp, rt), CurrentConfig->getActiveProfile()["filters"]["pro_mode"]["enable"].GetBool(), GetPlugIn()->GetTransitionAltitude(), CurrentConfig->getActiveProfile()["labels"]["use_aspeed_for_gate"].GetBool(), getActiveAirport());
