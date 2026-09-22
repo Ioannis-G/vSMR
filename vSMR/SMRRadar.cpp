@@ -857,11 +857,20 @@ void CSMRRadar::OnClickScreenObject(int ObjectType, const char * sObjectId, POIN
 		StartTagFunction(rt.GetCallsign(), NULL, EuroScopePlugIn::TAG_ITEM_TYPE_CALLSIGN, rt.GetCallsign(), NULL, TagMenu, Pt, Area);
 	}
 
-	if (Button == BUTTON_RIGHT && TagObjectRightTypes[ObjectType]) {
-		int TagMenu = TagObjectRightTypes[ObjectType];
-		CRadarTarget rt = GetPlugIn()->RadarTargetSelect(sObjectId);
-		GetPlugIn()->SetASELAircraft(GetPlugIn()->FlightPlanSelect(sObjectId));
-		StartTagFunction(rt.GetCallsign(), NULL, EuroScopePlugIn::TAG_ITEM_TYPE_CALLSIGN, rt.GetCallsign(), NULL, TagMenu, Pt, Area);
+	if (Button == BUTTON_RIGHT) {
+		if (ObjectType == TAG_CITEM_GATE) {
+			CRadarTarget rt = GetPlugIn()->RadarTargetSelect(sObjectId);
+			GetPlugIn()->SetASELAircraft(GetPlugIn()->FlightPlanSelect(sObjectId));
+			if (rt.GetCorrelatedFlightPlan().IsValid()) {
+				StartTagFunction(rt.GetCallsign(), "Ground Radar plugin", 2, rt.GetCallsign(), "Ground Radar plugin", 1, Pt, Area);
+			}
+		}
+		else if (TagObjectRightTypes[ObjectType]) {
+			int TagMenu = TagObjectRightTypes[ObjectType];
+			CRadarTarget rt = GetPlugIn()->RadarTargetSelect(sObjectId);
+			GetPlugIn()->SetASELAircraft(GetPlugIn()->FlightPlanSelect(sObjectId));
+			StartTagFunction(rt.GetCallsign(), NULL, ObjectType, rt.GetCallsign(), NULL, TagMenu, Pt, Area);
+		}
 	}
 
 	if (ObjectType == RIMCAS_DISTANCE_TOOL)
@@ -1420,7 +1429,7 @@ map<string, string> CSMRRadar::GenerateTagData(CRadarTarget rt, CFlightPlan fp, 
 	//}
 
 	if (gate.size() == 0 || gate == "0" || !isAcCorrelated)
-		gate = "NoGate";
+		gate = "NoGATE";
 
 	// ----- Gate that changes to speed -------
 	string sate = gate;
