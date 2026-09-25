@@ -859,11 +859,13 @@ void CSMRRadar::OnClickScreenObject(int ObjectType, const char * sObjectId, POIN
 
 	if (Button == BUTTON_RIGHT) {
 		if (ObjectType == TAG_CITEM_GATE) {
-			CRadarTarget rt = GetPlugIn()->RadarTargetSelect(sObjectId);
-			GetPlugIn()->SetASELAircraft(GetPlugIn()->FlightPlanSelect(sObjectId));
-			if (rt.GetCorrelatedFlightPlan().IsValid()) {
-				StartTagFunction(rt.GetCallsign(), "Ground Radar plugin", 2, rt.GetCallsign(), "Ground Radar plugin", 1, Pt, Area);
+			CFlightPlan fp = GetPlugIn()->FlightPlanSelect(sObjectId);
+			if (fp.IsValid()) {
+				GetPlugIn()->SetASELAircraft(fp);
+			} else {
+				GetPlugIn()->SetASELAircraft(GetPlugIn()->RadarTargetSelect(sObjectId));
 			}
+			StartTagFunction(sObjectId, "Ground Radar plugin", 2, sObjectId, "Ground Radar plugin", 1, Pt, Area);
 		}
 		else if (TagObjectRightTypes[ObjectType]) {
 			int TagMenu = TagObjectRightTypes[ObjectType];
@@ -1428,7 +1430,7 @@ map<string, string> CSMRRadar::GenerateTagData(CRadarTarget rt, CFlightPlan fp, 
 	//	gate = vStripsStands[rt.GetCallsign()];
 	//}
 
-	if (gate.size() == 0 || gate == "0" || !isAcCorrelated)
+	if (gate.size() == 0 || gate == "0" || (!isAcCorrelated && !fp.IsValid()))
 		gate = "NoGATE";
 
 	// ----- Gate that changes to speed -------
