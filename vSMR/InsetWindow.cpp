@@ -402,7 +402,7 @@ void CInsetWindow::render(HDC hDC, CSMRRadar * radar_screen, Graphics* gdi, POIN
 		// Drawing the tags, what a mess
 
 		// ----- Generating the replacing map -----
-		map<string, string> TagReplacingMap = CSMRRadar::GenerateTagData(rt, fp, radar_screen->IsCorrelated(fp, rt), radar_screen->CurrentConfig->getActiveProfile()["filters"]["pro_mode"]["enable"].GetBool(), radar_screen->GetPlugIn()->GetTransitionAltitude(), radar_screen->CurrentConfig->getActiveProfile()["labels"]["use_aspeed_for_gate"].GetBool(), icao);
+		map<string, string> TagReplacingMap = radar_screen->GenerateTagData(rt, fp, radar_screen->IsCorrelated(fp, rt), radar_screen->CurrentConfig->getActiveProfile()["filters"]["pro_mode"]["enable"].GetBool(), radar_screen->GetPlugIn()->GetTransitionAltitude(), radar_screen->CurrentConfig->getActiveProfile()["labels"]["use_aspeed_for_gate"].GetBool(), icao);
 
 		// ----- Generating the clickable map -----
 		map<string, int> TagClickableMap;
@@ -439,7 +439,7 @@ void CInsetWindow::render(HDC hDC, CSMRRadar * radar_screen, Graphics* gdi, POIN
 				ColorTagType = CSMRRadar::TagTypes::Arrival;
 		}
 
-				if (reportedGs > 50) {
+		if (radar_screen->IsAirborne(rt)) {
 			// Preserve dep/arr distinction for airborne tags
 			TagType = (TagType == CSMRRadar::TagTypes::Arrival) ? CSMRRadar::TagTypes::AirborneArrival : CSMRRadar::TagTypes::AirborneDeparture;
 			ColorTagType = TagType;
@@ -448,7 +448,7 @@ void CInsetWindow::render(HDC hDC, CSMRRadar * radar_screen, Graphics* gdi, POIN
 		bool AcisCorrelated = radar_screen->IsCorrelated(radar_screen->GetPlugIn()->FlightPlanSelect(rt.GetCallsign()), rt);
 		if (!AcisCorrelated && reportedGs >= 3)
 		{
-			TagType = (reportedGs > 50) ? CSMRRadar::TagTypes::AirborneUncorrelated : CSMRRadar::TagTypes::Uncorrelated;
+			TagType = radar_screen->IsAirborne(rt) ? CSMRRadar::TagTypes::AirborneUncorrelated : CSMRRadar::TagTypes::Uncorrelated;
 			ColorTagType = TagType;
 		}
 

@@ -18,6 +18,7 @@
 #include <thread>
 #include "ColorManager.h"
 #include "Logger.h"
+#include "AirportElevation.hpp"
 #include <filesystem>
 #include <iostream>
 
@@ -122,6 +123,8 @@ public:
 	int currentFontSize = 1;
 
 	map<string, CPosition> AirportPositions;
+	int AirportElevation = 0;
+	bool AirportElevationAvailable = false;
 
 	bool Afterglow = true;
 
@@ -150,13 +153,13 @@ public:
 		return ActiveAirport;
 	}
 
-	inline string setActiveAirport(string value) {
-		return ActiveAirport = value;
-	}
+	string setActiveAirport(string value);
 
 	//---GenerateTagData--------------------------------------------
 
-	static map<string, string> GenerateTagData(CRadarTarget Rt, CFlightPlan fp, bool isAcCorrelated, bool isProMode, int TransitionAltitude, bool useSpeedForGates, string ActiveAirport);
+	map<string, string> GenerateTagData(CRadarTarget Rt, CFlightPlan fp, bool isAcCorrelated, bool isProMode, int TransitionAltitude, bool useSpeedForGates, string ActiveAirport);
+
+	bool IsAirborne(CRadarTarget RadarTarget) const;
 
 	//---IsCorrelatedFuncs---------------------------------------------
 

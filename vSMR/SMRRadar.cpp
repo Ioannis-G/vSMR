@@ -120,7 +120,7 @@ CSMRRadar::CSMRRadar()
 		ColorManager = new CColorManager();
 
 	standardCursor = true;	
-	ActiveAirport = "EGKK";
+	setActiveAirport("EGKK");
 
 	// Setting up the data for the 2 approach windows
 	appWindowDisplays[1] = false;
@@ -238,6 +238,8 @@ void CSMRRadar::OnAsrContentLoaded(bool Loaded)
 {
 	Logger::info(string(__FUNCSIG__));
 	const char * p_value;
+
+	setActiveAirport("EGKK");
 
 	// ReSharper disable CppZeroConstantCanBeReplacedWithNullptr
 	if ((p_value = GetDataFromAsr("Airport")) != NULL)
@@ -1297,6 +1299,23 @@ bool CSMRRadar::OnCompileCommand(const char * sCommandLine)
 	return false;
 }
 
+string CSMRRadar::setActiveAirport(string value)
+{
+	ActiveAirport = value;
+	const optional<int> elevation = LoadAirportElevation(ActiveAirport, DllPath);
+	AirportElevationAvailable = elevation.has_value();
+	AirportElevation = elevation.value_or(0);
+	return ActiveAirport;
+}
+
+bool CSMRRadar::IsAirborne(CRadarTarget RadarTarget) const
+{
+	if (AirportElevationAvailable)
+		return RadarTarget.GetPosition().GetPressureAltitude() > AirportElevation + AIRBORNE_MARGIN_FT;
+
+	return RadarTarget.GetPosition().GetReportedGS() > 50;
+}
+
 map<string, string> CSMRRadar::GenerateTagData(CRadarTarget rt, CFlightPlan fp, bool isAcCorrelated, bool isProMode, int TransitionAltitude, bool useSpeedForGates, string ActiveAirport)
 {
 	Logger::info(string(__FUNCSIG__));
@@ -1325,7 +1344,7 @@ map<string, string> CSMRRadar::GenerateTagData(CRadarTarget rt, CFlightPlan fp, 
 	// ----
 
 	bool IsPrimary = !rt.GetPosition().GetTransponderC();
-	bool isAirborne = rt.GetPosition().GetReportedGS() > 50;
+	bool isAirborne = IsAirborne(rt);
 
 	// ----- Callsign -------
 	string callsign = rt.GetCallsign();
@@ -2116,7 +2135,7 @@ void CSMRRadar::OnRefresh(HDC hDC, int Phase)
 			}
 		}
 
-		if (reportedGs > 50) {
+		if (IsAirborne(rt)) {
 			// Preserve dep/arr distinction for airborne tags
 			TagType = (TagType == TagTypes::Arrival) ? TagTypes::AirborneArrival : TagTypes::AirborneDeparture;
 			ColorTagType = TagType;
@@ -2124,7 +2143,7 @@ void CSMRRadar::OnRefresh(HDC hDC, int Phase)
 
 		if (!AcisCorrelated && reportedGs >= 3)
 		{
-			TagType = (reportedGs > 50) ? TagTypes::AirborneUncorrelated : TagTypes::Uncorrelated;
+			TagType = IsAirborne(rt) ? TagTypes::AirborneUncorrelated : TagTypes::Uncorrelated;
 			ColorTagType = TagType;
 		}
 

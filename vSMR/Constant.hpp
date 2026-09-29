@@ -11,6 +11,7 @@
 #include <iomanip>
 
 #define VSTRIPS_PORT 53487
+#define AIRBORNE_MARGIN_FT 50
 
 using namespace std;
 using namespace EuroScopePlugIn;

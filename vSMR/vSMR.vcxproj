@@ -129,6 +129,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="CallsignLookup.cpp" />
+    <ClCompile Include="AirportElevation.cpp" />
     <ClCompile Include="Config.cpp" />
     <ClCompile Include="CPDLCSettingsDialog.cpp" />
     <ClCompile Include="DataLinkDialog.cpp" />
@@ -145,6 +146,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="CallsignLookup.hpp" />
+    <ClInclude Include="AirportElevation.hpp" />
     <ClInclude Include="ColorManager.h" />
     <ClInclude Include="Config.hpp" />
     <ClInclude Include="Constant.hpp" />
