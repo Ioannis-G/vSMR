@@ -226,6 +226,9 @@ public:
 
 	virtual void LoadProfile(string profileName);
 
+	void LoadGlobalSettings();
+	void SaveGlobalSettings();
+
 	//---OnAsrContentLoaded--------------------------------------------
 
 	virtual void OnAsrContentLoaded(bool Loaded);

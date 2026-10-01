@@ -234,11 +234,123 @@ void CSMRRadar::LoadProfile(string profileName) {
 	this->LoadCustomFont();
 }
 
+void CSMRRadar::LoadGlobalSettings()
+{
+	if (GetPlugIn() == nullptr)
+		return;
+
+	const char* p_value;
+
+	currentFontSize = 1;
+	Afterglow = true;
+	Trail_App = 4;
+	Trail_Gnd = 4;
+	PredictedLength = 0;
+
+	RECT radarArea = GetRadarArea();
+	int radarWidth = radarArea.right - radarArea.left;
+	int radarHeight = radarArea.bottom - radarArea.top;
+	int defaultTimerX = 300;
+	int defaultTimerY = 300;
+	if (radarWidth > 0 && radarHeight > 0)
+	{
+		defaultTimerX = radarArea.right - 180;
+		defaultTimerY = radarArea.top + (radarHeight / 2) - 60;
+	}
+	TimePopupAreas["__default__"] = { defaultTimerX, defaultTimerY, 0, 0 };
+
+	if ((p_value = GetPlugIn()->GetDataFromSettings("FontSize")) != NULL)
+		currentFontSize = atoi(p_value);
+	if ((p_value = GetPlugIn()->GetDataFromSettings("Afterglow")) != NULL)
+		Afterglow = atoi(p_value) == 1;
+	if ((p_value = GetPlugIn()->GetDataFromSettings("AppTrailsDots")) != NULL)
+		Trail_App = atoi(p_value);
+	if ((p_value = GetPlugIn()->GetDataFromSettings("GndTrailsDots")) != NULL)
+		Trail_Gnd = atoi(p_value);
+	if ((p_value = GetPlugIn()->GetDataFromSettings("PredictedLine")) != NULL)
+		PredictedLength = atoi(p_value);
+	if ((p_value = GetPlugIn()->GetDataFromSettings("TimerTopLeftX")) != NULL)
+		TimePopupAreas["__default__"].left = atoi(p_value);
+	if ((p_value = GetPlugIn()->GetDataFromSettings("TimerTopLeftY")) != NULL)
+		TimePopupAreas["__default__"].top = atoi(p_value);
+
+	for (int i = 1; i < 3; i++)
+	{
+		string prefix = "SRW" + std::to_string(i);
+
+		if (radarWidth > 0 && radarHeight > 0)
+		{
+			int top = i == 1
+				? radarArea.top + 40
+				: max(radarArea.top + 40, radarArea.bottom - 340);
+			appWindows[i]->m_Area = { radarArea.right - 420, top, radarArea.right - 20, top + 300 };
+		}
+		else
+			appWindows[i]->m_Area = { 200, 200, 600, 500 };
+		appWindows[i]->m_Offset = { 0, 0 };
+		appWindows[i]->m_Filter = 5500;
+		appWindows[i]->m_Scale = 15;
+		appWindows[i]->m_Rotation = 0;
+		appWindowDisplays[i] = false;
+
+		if ((p_value = GetPlugIn()->GetDataFromSettings((prefix + "TopLeftX").c_str())) != NULL)
+			appWindows[i]->m_Area.left = atoi(p_value);
+		if ((p_value = GetPlugIn()->GetDataFromSettings((prefix + "TopLeftY").c_str())) != NULL)
+			appWindows[i]->m_Area.top = atoi(p_value);
+		if ((p_value = GetPlugIn()->GetDataFromSettings((prefix + "BottomRightX").c_str())) != NULL)
+			appWindows[i]->m_Area.right = atoi(p_value);
+		if ((p_value = GetPlugIn()->GetDataFromSettings((prefix + "BottomRightY").c_str())) != NULL)
+			appWindows[i]->m_Area.bottom = atoi(p_value);
+		if ((p_value = GetPlugIn()->GetDataFromSettings((prefix + "OffsetX").c_str())) != NULL)
+			appWindows[i]->m_Offset.x = atoi(p_value);
+		if ((p_value = GetPlugIn()->GetDataFromSettings((prefix + "OffsetY").c_str())) != NULL)
+			appWindows[i]->m_Offset.y = atoi(p_value);
+		if ((p_value = GetPlugIn()->GetDataFromSettings((prefix + "Filter").c_str())) != NULL)
+			appWindows[i]->m_Filter = atoi(p_value);
+		if ((p_value = GetPlugIn()->GetDataFromSettings((prefix + "Scale").c_str())) != NULL)
+			appWindows[i]->m_Scale = atoi(p_value);
+		if ((p_value = GetPlugIn()->GetDataFromSettings((prefix + "Rotation").c_str())) != NULL)
+			appWindows[i]->m_Rotation = atoi(p_value);
+		if ((p_value = GetPlugIn()->GetDataFromSettings((prefix + "Display").c_str())) != NULL)
+			appWindowDisplays[i] = atoi(p_value) == 1;
+	}
+}
+
+void CSMRRadar::SaveGlobalSettings()
+{
+	if (GetPlugIn() == nullptr)
+		return;
+
+	GetPlugIn()->SaveDataToSettings("FontSize", "vSMR font size", std::to_string(currentFontSize).c_str());
+	GetPlugIn()->SaveDataToSettings("Afterglow", "vSMR Afterglow enabled", std::to_string(int(Afterglow)).c_str());
+	GetPlugIn()->SaveDataToSettings("AppTrailsDots", "vSMR APPR Trail Dots", std::to_string(Trail_App).c_str());
+	GetPlugIn()->SaveDataToSettings("GndTrailsDots", "vSMR GRND Trail Dots", std::to_string(Trail_Gnd).c_str());
+	GetPlugIn()->SaveDataToSettings("PredictedLine", "vSMR Predicted Track Lines", std::to_string(PredictedLength).c_str());
+	RECT defaultTimerArea = TimePopupAreas["__default__"];
+	GetPlugIn()->SaveDataToSettings("TimerTopLeftX", "vSMR runway timer position", std::to_string(defaultTimerArea.left).c_str());
+	GetPlugIn()->SaveDataToSettings("TimerTopLeftY", "vSMR runway timer position", std::to_string(defaultTimerArea.top).c_str());
+	for (int i = 1; i < 3; i++)
+	{
+		string prefix = "SRW" + std::to_string(i);
+		GetPlugIn()->SaveDataToSettings((prefix + "TopLeftX").c_str(), "vSMR SRW position", std::to_string(appWindows[i]->m_Area.left).c_str());
+		GetPlugIn()->SaveDataToSettings((prefix + "TopLeftY").c_str(), "vSMR SRW position", std::to_string(appWindows[i]->m_Area.top).c_str());
+		GetPlugIn()->SaveDataToSettings((prefix + "BottomRightX").c_str(), "vSMR SRW position", std::to_string(appWindows[i]->m_Area.right).c_str());
+		GetPlugIn()->SaveDataToSettings((prefix + "BottomRightY").c_str(), "vSMR SRW position", std::to_string(appWindows[i]->m_Area.bottom).c_str());
+		GetPlugIn()->SaveDataToSettings((prefix + "OffsetX").c_str(), "vSMR SRW offset", std::to_string(appWindows[i]->m_Offset.x).c_str());
+		GetPlugIn()->SaveDataToSettings((prefix + "OffsetY").c_str(), "vSMR SRW offset", std::to_string(appWindows[i]->m_Offset.y).c_str());
+		GetPlugIn()->SaveDataToSettings((prefix + "Filter").c_str(), "vSMR SRW filter", std::to_string(appWindows[i]->m_Filter).c_str());
+		GetPlugIn()->SaveDataToSettings((prefix + "Scale").c_str(), "vSMR SRW range", std::to_string(appWindows[i]->m_Scale).c_str());
+		GetPlugIn()->SaveDataToSettings((prefix + "Rotation").c_str(), "vSMR SRW rotation", std::to_string((int)appWindows[i]->m_Rotation).c_str());
+		GetPlugIn()->SaveDataToSettings((prefix + "Display").c_str(), "vSMR display secondary radar window", std::to_string(int(appWindowDisplays[i])).c_str());
+	}
+}
 void CSMRRadar::OnAsrContentLoaded(bool Loaded)
 {
 	Logger::info(string(__FUNCSIG__));
 	const char * p_value;
 
+	TimePopupAreas.clear();
+	LoadGlobalSettings();
 	setActiveAirport("EGKK");
 
 	// ReSharper disable CppZeroConstantCanBeReplacedWithNullptr
@@ -250,18 +362,18 @@ void CSMRRadar::OnAsrContentLoaded(bool Loaded)
 
 	if ((p_value = GetDataFromAsr("FontSize")) != NULL)
 		currentFontSize = atoi(p_value);
-
 	if ((p_value = GetDataFromAsr("Afterglow")) != NULL)
-		Afterglow = atoi(p_value) == 1 ? true : false;
-
+		Afterglow = atoi(p_value) == 1;
 	if ((p_value = GetDataFromAsr("AppTrailsDots")) != NULL)
 		Trail_App = atoi(p_value);
-
 	if ((p_value = GetDataFromAsr("GndTrailsDots")) != NULL)
 		Trail_Gnd = atoi(p_value);
-
 	if ((p_value = GetDataFromAsr("PredictedLine")) != NULL)
 		PredictedLength = atoi(p_value);
+	if ((p_value = GetDataFromAsr("TimerTopLeftX")) != NULL)
+		TimePopupAreas["__default__"].left = atoi(p_value);
+	if ((p_value = GetDataFromAsr("TimerTopLeftY")) != NULL)
+		TimePopupAreas["__default__"].top = atoi(p_value);
 
 	string temp;
 
@@ -329,55 +441,6 @@ void CSMRRadar::OnAsrContentToBeSaved()
 	SaveDataToAsr("Airport", "Active airport for RIMCAS", getActiveAirport().c_str());
 
 	SaveDataToAsr("ActiveProfile", "vSMR active profile", CurrentConfig->getActiveProfileName().c_str());
-
-	SaveDataToAsr("FontSize", "vSMR font size", std::to_string(currentFontSize).c_str());
-
-	SaveDataToAsr("Afterglow", "vSMR Afterglow enabled", std::to_string(int(Afterglow)).c_str());
-
-	SaveDataToAsr("AppTrailsDots", "vSMR APPR Trail Dots", std::to_string(Trail_App).c_str());
-
-	SaveDataToAsr("GndTrailsDots", "vSMR GRND Trail Dots", std::to_string(Trail_Gnd).c_str());
-
-	SaveDataToAsr("PredictedLine", "vSMR Predicted Track Lines", std::to_string(PredictedLength).c_str());
-
-	string temp = "";
-
-	for (int i = 1; i < 3; i++)
-	{
-		string prefix = "SRW" + std::to_string(i);
-
-		temp = std::to_string(appWindows[i]->m_Area.left);
-		SaveDataToAsr(string(prefix + "TopLeftX").c_str(), "SRW position", temp.c_str());
-
-		temp = std::to_string(appWindows[i]->m_Area.top);
-		SaveDataToAsr(string(prefix + "TopLeftY").c_str(), "SRW position", temp.c_str());
-
-		temp = std::to_string(appWindows[i]->m_Area.right);
-		SaveDataToAsr(string(prefix + "BottomRightX").c_str(), "SRW position", temp.c_str());
-
-		temp = std::to_string(appWindows[i]->m_Area.bottom);
-		SaveDataToAsr(string(prefix + "BottomRightY").c_str(), "SRW position", temp.c_str());
-
-		temp = std::to_string(appWindows[i]->m_Offset.x);
-		SaveDataToAsr(string(prefix + "OffsetX").c_str(), "SRW offset", temp.c_str());
-
-		temp = std::to_string(appWindows[i]->m_Offset.y);
-		SaveDataToAsr(string(prefix + "OffsetY").c_str(), "SRW offset", temp.c_str());
-
-		temp = std::to_string(appWindows[i]->m_Filter);
-		SaveDataToAsr(string(prefix + "Filter").c_str(), "SRW filter", temp.c_str());
-
-		temp = std::to_string(appWindows[i]->m_Scale);
-		SaveDataToAsr(string(prefix + "Scale").c_str(), "SRW range", temp.c_str());
-
-		temp = std::to_string((int)appWindows[i]->m_Rotation);
-		SaveDataToAsr(string(prefix + "Rotation").c_str(), "SRW rotation", temp.c_str());
-
-		string to_save = "0";
-		if (appWindowDisplays[i])
-			to_save = "1";
-		SaveDataToAsr(string(prefix + "Display").c_str(), "Display Secondary Radar Window", to_save.c_str());
-	}	
 }
 
 void CSMRRadar::OnMoveScreenObject(int ObjectType, const char * sObjectId, POINT Pt, RECT Area, bool Released) {
@@ -494,6 +557,8 @@ void CSMRRadar::OnMoveScreenObject(int ObjectType, const char * sObjectId, POINT
 
 	if (ObjectType == RIMCAS_IAW) {
 		TimePopupAreas[sObjectId] = Area;
+		TimePopupAreas["__default__"].left = Area.left;
+		TimePopupAreas["__default__"].top = Area.top;
 
 		if (!Released)
 		{
@@ -524,6 +589,9 @@ void CSMRRadar::OnMoveScreenObject(int ObjectType, const char * sObjectId, POINT
 				standardCursor = true;
 			}
 		}
+
+		if (Released)
+			SaveGlobalSettings();
 	}
 
 	mouseLocation = Pt;
@@ -1083,6 +1151,8 @@ void CSMRRadar::OnFunctionCall(int FunctionId, const char * sItemString, POINT P
 
 		CorrelateCursor();
 	}
+
+	SaveGlobalSettings();
 }
 
 void CSMRRadar::RefreshAirportActivity(void) {
@@ -2412,7 +2482,15 @@ void CSMRRadar::OnRefresh(HDC hDC, int Phase)
 			TimeDefinition = RimcasInstance->CountdownDefinitionLVP;
 
 		if (TimePopupAreas.find(it->first) == TimePopupAreas.end())
-			TimePopupAreas[it->first] = { 300, 300, 430, 300+LONG(TextHeight*(TimeDefinition.size()+1)) };
+		{
+			RECT defaultTimerArea = TimePopupAreas["__default__"];
+			TimePopupAreas[it->first] = {
+				defaultTimerArea.left,
+				defaultTimerArea.top,
+				defaultTimerArea.left + 130,
+				defaultTimerArea.top + LONG(TextHeight * (TimeDefinition.size() + 1))
+			};
+		}
 
 		CRect CRectTime = TimePopupAreas[it->first];
 		CRectTime.NormalizeRect();
