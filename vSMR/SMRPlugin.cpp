@@ -57,14 +57,38 @@ clock_t timer;
 
 string myfrequency;
 
-map<string, string> vStrips_Stands;
-
 bool startThreadvStrips = true;
 
 using namespace SMRPluginSharedData;
 char recv_buf[1024];
 
 vector<CSMRRadar*> RadarScreensOpened;
+
+namespace {
+	const char* GRP_SCRATCHPAD_PREFIX = "GRP/S/";
+
+	bool TryParseGRPStandAssignment(const char* scratchpad, string& stand)
+	{
+		if (scratchpad == nullptr)
+			return false;
+
+		string value(scratchpad);
+		const size_t prefixLength = strlen(GRP_SCRATCHPAD_PREFIX);
+		if (value.compare(0, prefixLength, GRP_SCRATCHPAD_PREFIX) != 0)
+			return false;
+
+		value.erase(0, prefixLength);
+		size_t start = value.find_first_not_of(" \t\r\n");
+		if (start == string::npos) {
+			stand.clear();
+			return true;
+		}
+
+		size_t end = value.find_last_not_of(" \t\r\n");
+		stand = value.substr(start, end - start + 1);
+		return true;
+	}
+}
 
 void datalinkLogin(void * arg) {
 	string raw;
@@ -599,12 +623,33 @@ void CSMRPlugin::OnFlightPlanDisconnect(CFlightPlan FlightPlan)
 {
 	Logger::info(string(__FUNCSIG__));
 	CRadarTarget rt = RadarTargetSelect(FlightPlan.GetCallsign());
+	CSMRRadar::GRPStands.erase(FlightPlan.GetCallsign());
 
 	if (std::find(ReleasedTracks.begin(), ReleasedTracks.end(), rt.GetSystemID()) != ReleasedTracks.end())
 		ReleasedTracks.erase(std::find(ReleasedTracks.begin(), ReleasedTracks.end(), rt.GetSystemID()));
 
 	if (std::find(ManuallyCorrelated.begin(), ManuallyCorrelated.end(), rt.GetSystemID()) != ManuallyCorrelated.end())
 		ManuallyCorrelated.erase(std::find(ManuallyCorrelated.begin(), ManuallyCorrelated.end(), rt.GetSystemID()));
+}
+
+void CSMRPlugin::OnFlightPlanControllerAssignedDataUpdate(CFlightPlan FlightPlan, int DataType)
+{
+	Logger::info(string(__FUNCSIG__));
+
+	if (DataType != CTR_DATA_TYPE_SCRATCH_PAD_STRING || !FlightPlan.IsValid())
+		return;
+
+	string callsign = FlightPlan.GetCallsign();
+	string stand;
+	if (!TryParseGRPStandAssignment(FlightPlan.GetControllerAssignedData().GetScratchPadString(), stand))
+		return;
+
+	if (stand.empty()) {
+		CSMRRadar::GRPStands.erase(callsign);
+		return;
+	}
+
+	CSMRRadar::GRPStands[callsign] = stand;
 }
 
 void CSMRPlugin::OnTimer(int Counter)
