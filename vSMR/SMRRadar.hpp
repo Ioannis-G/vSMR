@@ -48,7 +48,7 @@ public:
 	CSMRRadar();
 	virtual ~CSMRRadar();
 
-	static map<string, string> vStripsStands;
+	static map<string, string> GRPStands;
 
 	bool BLINK = false;
 

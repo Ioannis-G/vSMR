@@ -44,6 +44,10 @@ public:
 
 	virtual void OnFlightPlanDisconnect(CFlightPlan FlightPlan);
 
+	//---OnFlightPlanControllerAssignedDataUpdate------------------------
+
+	virtual void OnFlightPlanControllerAssignedDataUpdate(CFlightPlan FlightPlan, int DataType);
+
 	//---OnTimer------------------------------------------
 
 	virtual void OnTimer(int Counter);
@@ -52,4 +56,3 @@ public:
 
 	virtual CRadarScreen * OnRadarScreenCreated(const char * sDisplayName, bool NeedRadarContent, bool GeoReferenced, bool CanBeSaved, bool CanBeCreated);
 };
-
